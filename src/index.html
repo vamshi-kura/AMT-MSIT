@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="index.css">
+      <!-- CSS only for bootstrap -->
+  <link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
+  <script>let $ = require('jquery');</script>
+  <script>require('popper.js');</script>
+  <script>require('bootstrap');</script>
+
+    <meta charset="utf-8">
+    <title>Godseye</title>
+  </head>
+  <body>
+
+    <div class="jumbotron">
+      <h1 class="display-5">MSIT Learning</h1>
+      <hr class="my-2">
+      <div class="text-secondary">
+      <p>Students work from 9:00 am to 9:00 pm with two one hour breaks. Those who are late by 10 minutes or more will be automatically marked absent for that day. Dean (Student Affairs) interviews absentees. Students with attendance of less than 70% have to reregister.</p>
+      <br/>
+      <button  id = "Google-sign" type="button" class="btn btn-primary">Check-In</button>
+      <p>Problem with check in? Write to help@msitprogram.net and CC your mentor.</p>
+        
+    </div>
+    </div>
+
+    <!-- <div id = "Google-sign" >
+      <div class='g-sign-in-button'>
+      <div id='content-wrapper'>
+        <span class='text-container'>
+          <span>Check-in</span>
+        </span>
+      </div>
+    </div>
+  </div> -->
+  
+    <script>
+      require('./renderer')
+    </script>
+  </body>
+</html>

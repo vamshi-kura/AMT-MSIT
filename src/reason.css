@@ -1,0 +1,13 @@
+.jumbotron {
+  background-color:transparent !important;
+  margin-bottom: 0px !important; 
+  padding-bottom: 10px !important;
+  color: #6f5a96;
+ }
+ .display-5 {
+  letter-spacing: .15em;
+  font-weight: 600;
+}
+#reason-form {
+	margin: 30px;
+}

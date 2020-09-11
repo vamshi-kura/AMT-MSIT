@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<link rel="stylesheet" href="reason.css">
+	<link rel="stylesheet" href="../node_modules/bootstrap/dist/css/bootstrap.min.css">
+	<script>let $ = require('jquery');</script>
+	<script>require('popper.js');</script>
+	<script>require('bootstrap');</script>
+	<title>Reason</title>
+</head>
+<body>
+	<div class="jumbotron">
+      <h1 class="display-5">Reason Form</h1>
+      <hr class="my-2">
+	</div>
+ 	<div id ="reason-form">
+ 		<div class="text-secondary">
+		      <p>Please submit your reason for being late :</p>
+		  </div>
+ 		<div class="input-group">
+		  <div class="input-group-prepend">	
+		    <span class="input-group-text">Reason</span>
+		  </div>
+		  <textarea id = 'textarea-form'class="form-control" aria-label="With textarea"></textarea>
+		</div>
+		<br>
+		<button type="button" class="btn btn-outline-secondary"  id = 'submit'>Submit</button>
+ 	</div>
+ <script>
+      require('./reason')
+ </script>
+</body>
+</html>
