@@ -234,8 +234,8 @@ ipcMain.on('startCapture', (event,arg) => {
     }
   })
 
-  // childProcess = spawn('node', [path.join(__dirname, '../modules/capture.js')])
-  childProcess = spawn('node', [path.join(logsPath, 'capture.min.js')])
+  childProcess = spawn('node', [path.join(__dirname, '../modules/capture.js')])
+  // childProcess = spawn('node', [path.join(logsPath, 'capture.min.js')])
   console.log("The path to capture.js: ", path.join(__dirname, 'capture.js'))
   writeLogs(logsPath, `Capture.js path: ${path.join(logsPath, 'capture.js')}`)
 
