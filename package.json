@@ -8,8 +8,7 @@
     "build": "electron-builder build --win --publish never",
     "deploy": "electron-builder build --win --publish always",
     "rebuild": "electron-rebuild -f -w iconv",
-    "dist": "electron-builder",
-    "postinstall": "electron-rebuild -f -w iconv"
+    "dist": "electron-builder"
   },
   "keywords": [],
   "author": "",
@@ -23,6 +22,7 @@
     "active-win": "^6.1.0",
     "axios": "^0.20.0",
     "bootstrap": "^4.5.2",
+    "csv-parser": "^2.3.3",
     "electron-packager": "^15.1.0",
     "electron-updater": "^4.3.4",
     "greeting-time": "^1.0.0",

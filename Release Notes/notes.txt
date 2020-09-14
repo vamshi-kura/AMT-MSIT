@@ -1,0 +1,13 @@
+List of Features
+01 - Login with Google authentication
+02 - Attendance Marking
+03 - Take a break
+04 - Capturing The reason if the student is late for work after a break
+05 - Keystrokes and clickstreams capture
+06 - Data compression version 0.1 
+07 - Removal of sync
+08 - Addition of Sqlite (Todo)
+09 - Trigger data extraction from DB using the scheduler (Todo)
+10 - Fetch the schedule API (Todo)
+11 - Submit report to cloud (Todo)
+12 - Queing the report request (Todo)
