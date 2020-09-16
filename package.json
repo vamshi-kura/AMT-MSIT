@@ -35,7 +35,9 @@
     "open": "^7.2.0",
     "popper.js": "^1.16.1",
     "readdirp": "^3.4.0",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "sequelize": "^6.3.5",
+    "sqlite3": "^5.0.0"
   },
   "repository": {
     "type": "git",

@@ -4,20 +4,17 @@ const activeWin = require("active-win");
 
 try {
   ioHook.on("keydown", async (event) => {
-    // console.log("The evenet registere is: ", event)
     await activeWin()
       .then((response) => {
+        if (response && response.bounds) delete response.bounds;
+        if (response && response.memoryUsage) delete response.memoryUsage;
         let time = Date.now();
         let timeStampDetails = time;
-        // let time = new Date()
-        // let timeStampDetails = time.toDateString() + " " + time.toTimeString()
         finalObject = {
           keystrokeData: event,
           windowData: response,
           timeStamp: timeStampDetails,
         };
-        // process.send(finalObject)
-        // console.log(finalObject)
         process.stdout.write(JSON.stringify(finalObject));
       })
       .catch((error) => {
@@ -30,24 +27,21 @@ try {
 
 try {
   ioHook.on("mousedown", async (event) => {
-    // console.log("The evenet registere is: ", event)
     await activeWin()
       .then((response) => {
+        if (response && response.bounds) delete response.bounds;
+        if (response && response.memoryUsage) delete response.memoryUsage;
         let time = Date.now();
         let timeStampDetails = time;
-        // let time = new Date()
-        // let timeStampDetails = time.toDateString() + " " + time.toTimeString()
         finalObject = {
           mouseData: event,
           windowData: response,
           timeStamp: timeStampDetails,
         };
-        // process.send(finalObject)
-        // console.log(finalObject)
         process.stdout.write(JSON.stringify(finalObject));
       })
       .catch((error) => {
-        console.error("Error in keyborad active window event", error);
+        console.error("Error in mousedown active window event", error);
       });
   });
 

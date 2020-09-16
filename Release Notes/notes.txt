@@ -6,7 +6,7 @@ List of Features
 05 - Keystrokes and clickstreams capture
 06 - Data compression version 0.1 
 07 - Removal of sync
-08 - Addition of Sqlite (Todo)
+08 - Addition of Sqlite
 09 - Trigger data extraction from DB using the scheduler (Todo)
 10 - Fetch the schedule API (Todo)
 11 - Submit report to cloud (Todo)

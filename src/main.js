@@ -9,6 +9,13 @@ const os = require("os");
 const { writeLogs } = require("../modules/logger");
 const { send } = require("process");
 const { autoUpdater } = require("electron-updater");
+const {
+  createDatabase,
+  createWindowTable,
+  createEventTable,
+  insertWindowData,
+  insertEventData,
+} = require("../modules/databaseService");
 
 let childProcess; // Reference to the current child process
 let mainWindow;
@@ -24,6 +31,7 @@ let logoutClicked = true;
 let reasonWindow;
 let windowCodeObj;
 let windowCounter;
+let DB;
 
 // Creating the browser window
 function createWindow() {
@@ -67,7 +75,7 @@ function createWindow() {
     }
   });
 
-  // creating the  gods eye folder
+  // creating the  gods eye folder and the database
   logsPath = path.join(os.homedir(), "godseye");
   console.log("The logs path: ", logsPath);
   if (!fs.existsSync(logsPath)) {
@@ -77,6 +85,11 @@ function createWindow() {
       console.log("facing issue during the log file creation", error);
     }
   }
+  // Creating the database
+  // Creating the tables
+  DB = createDatabase();
+  createWindowTable(DB);
+  createEventTable(DB);
 
   // Checking for auto updates
   mainWindow.webContents.on("did-finish-load", () => {
@@ -305,7 +318,8 @@ ipcMain.on("startCapture", (event, arg) => {
             /,/g,
             " | "
           );
-          csvData = `${windowCounter},${child_obj.windowData.owner.name},${temp_data}\n`;
+          let temp_title = child_obj.windowData.owner.name.replace(/,/g, " | ");
+          csvData = `${windowCounter},${temp_title},${temp_data}\n`;
           wcode = windowCounter;
         } else {
           // Not a new window
@@ -324,7 +338,8 @@ ipcMain.on("startCapture", (event, arg) => {
             /,/g,
             " | "
           );
-          csvData = `${windowCounter},${child_obj.windowData.title},${temp_data}\n`;
+          let temp_title = child_obj.windowData.title.replace(/,/g, " | ");
+          csvData = `${windowCounter},${temp_title},${temp_data}\n`;
           wcode = windowCounter;
         } else {
           wcode = windowCodeObj[child_obj.windowData.title][0];
@@ -346,6 +361,22 @@ ipcMain.on("startCapture", (event, arg) => {
           return console.log(err);
         }
       });
+
+      // Inserting the data into DB
+      try {
+        if (DB) {
+          let values = csvData.split(",");
+          values[0] = parseInt(values[0]);
+          console.log("The values: ", values);
+          insertWindowData(DB, values);
+        }
+      } catch (err) {
+        console.log("Error while inserting the data into window table: ", err);
+        writeLogs(
+          logsPath,
+          `Error while inserting the data into window table: ${err}`
+        );
+      }
     }
 
     console.log(
@@ -368,6 +399,44 @@ ipcMain.on("startCapture", (event, arg) => {
           );
         }
       });
+
+      // Inserting into the event DB
+      let values;
+      let row_data = rowString.split(",");
+      let delay_string = "";
+      if (row_data.length > 3) {
+        delay_string = row_data.slice(2, row_data.length).toString();
+      }
+      if (PrevEvent === "startCapture") {
+        values = [parseInt(row_data[0]), 0, "start", 0, ""];
+      } else if (PrevEvent === "mouseData") {
+        let event_count = row_data.length - 2;
+        values = [
+          parseInt(row_data[0]),
+          parseInt(row_data[1]),
+          "mouse-click",
+          event_count,
+          delay_string,
+        ];
+      } else {
+        let event_count = row_data.length - 2;
+        values = [
+          parseInt(row_data[0]),
+          parseInt(row_data[1]),
+          "key-stroke",
+          event_count,
+          delay_string,
+        ];
+      }
+
+      try {
+        if (DB) insertEventData(DB, values);
+        else writeLogs(logsPath, "DB is null while inserting into events");
+      } catch (err) {
+        console.log("Error while inserting into event table ", err);
+        writeLogs(logsPath, `Error while inserting into event table ${err}`);
+      }
+
       // currentTimeStamp = child_obj.timeStamp
       rowString = `${child_obj.timeStamp},${wcode},`;
     } else {
@@ -430,6 +499,17 @@ ipcMain.on("stopCapture", (event, arg) => {
       );
     }
   });
+
+  // Inserting the event into the DB
+  let values = [Date.now(), -2, "stop", 0, ""];
+  try {
+    if (DB) insertEventData(DB, values);
+    else writeLogs(logsPath, "DB is null while inserting into events");
+  } catch (err) {
+    console.log("Error while inserting data in event ", err);
+    writeLogs(logsPath, `Error while inserting data in event ${err}`);
+  }
+
   if (arg === "logout-event") {
     UUID = null;
     logoutClicked = true;
