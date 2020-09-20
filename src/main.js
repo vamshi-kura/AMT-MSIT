@@ -1,5 +1,5 @@
 const electron = require("electron");
-const { app, BrowserWindow, ipcMain, Menu } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, powerMonitor } = require("electron");
 const open = require("open");
 const { fork, spawn } = require("child_process");
 const fs = require("fs");
@@ -9,6 +9,7 @@ const os = require("os");
 const { writeLogs } = require("../modules/logger");
 const { send } = require("process");
 const { autoUpdater } = require("electron-updater");
+const schedule = require("node-schedule");
 const {
   createDatabase,
   createWindowTable,
@@ -16,6 +17,8 @@ const {
   insertWindowData,
   insertEventData,
 } = require("../modules/databaseService");
+const { generateReport } = require("../modules/reportScheduler");
+const { compressAlgo } = require("../modules/compress");
 
 let childProcess; // Reference to the current child process
 let mainWindow;
@@ -32,6 +35,9 @@ let reasonWindow;
 let windowCodeObj;
 let windowCounter;
 let DB;
+let idleTime = 0;
+let idleTimer;
+let tempIdletime = 0;
 
 // Creating the browser window
 function createWindow() {
@@ -72,6 +78,7 @@ function createWindow() {
       e.preventDefault();
     } else {
       if (childProcess) childProcess.kill();
+      if (DB) DB.close();
     }
   });
 
@@ -230,6 +237,14 @@ ipcMain.on("check-attendance", (event) => {
 
 // Handling the start and stop events
 ipcMain.on("startCapture", (event, arg) => {
+  idleTimer = setInterval(() => {
+    tempIdletime = powerMonitor.getSystemIdleTime();
+    if (tempIdletime > 60) {
+      tempIdletime = 60;
+    }
+    idleTime += tempIdletime;
+  }, 60000);
+
   try {
     if (arg && arg.includes("closeReasonWindow")) {
       let reason = arg.split("-")[1];
@@ -288,6 +303,7 @@ ipcMain.on("startCapture", (event, arg) => {
   // Vars to keep updating the csv files
   let PrevTimeStamp;
   let PrevWindowCode;
+  let firstKeyCode;
   let PrevEvent = "startCapture";
   let rowString = `${Date.now()},Start`;
 
@@ -298,159 +314,76 @@ ipcMain.on("startCapture", (event, arg) => {
 
   //handling messsages from child_process
   childProcess.stdout.on("data", (data) => {
-    let csvData;
-    let wcode;
-    let child_obj = JSON.parse(`${data}`);
-
-    if (child_obj.windowData != undefined) {
-      if (
-        child_obj.windowData.title === undefined ||
-        child_obj.windowData.title === ""
-      ) {
-        if (windowCodeObj[child_obj.windowData.owner.name] === undefined) {
-          //New window found
-          windowCounter += 1;
-          windowCodeObj[child_obj.windowData.owner.name] = [
-            windowCounter,
-            child_obj.windowData,
-          ];
-          let temp_data = JSON.stringify(child_obj.windowData).replace(
-            /,/g,
-            " | "
-          );
-          let temp_title = child_obj.windowData.owner.name.replace(/,/g, " | ");
-          csvData = `${windowCounter},${temp_title},${temp_data}\n`;
-          wcode = windowCounter;
-        } else {
-          // Not a new window
-          wcode = windowCodeObj[child_obj.windowData.owner.name][0];
-        }
-      } else {
-        // window title is present
-        if (windowCodeObj[child_obj.windowData.title] === undefined) {
-          // New window found
-          windowCounter += 1;
-          windowCodeObj[child_obj.windowData.title] = [
-            windowCounter,
-            child_obj.windowData,
-          ];
-          let temp_data = JSON.stringify(child_obj.windowData).replace(
-            /,/g,
-            " | "
-          );
-          let temp_title = child_obj.windowData.title.replace(/,/g, " | ");
-          csvData = `${windowCounter},${temp_title},${temp_data}\n`;
-          wcode = windowCounter;
-        } else {
-          wcode = windowCodeObj[child_obj.windowData.title][0];
-        }
+    let child_obj;
+    try {
+      var regex = /\$AMT\$/gi,
+        result,
+        indices = [];
+      while ((result = regex.exec(`${data}`))) {
+        indices.push(result.index);
       }
-    } else {
-      //undefined winowData Desktop click
-      wcode = -1;
-    }
-
-    // Writing to window.csv file
-    if (csvData) {
-      fs.appendFile(window_file, csvData, function (err) {
-        if (err) {
-          writeLogs(
-            logsPath,
-            `error in main while writing to window.csv ${err}`
-          );
-          return console.log(err);
-        }
-      });
-
-      // Inserting the data into DB
-      try {
-        if (DB) {
-          let values = csvData.split(",");
-          values[0] = parseInt(values[0]);
-          console.log("The values: ", values);
-          insertWindowData(DB, values);
-        }
-      } catch (err) {
-        console.log("Error while inserting the data into window table: ", err);
-        writeLogs(
-          logsPath,
-          `Error while inserting the data into window table: ${err}`
+      console.log("Testing: ", indices);
+      if (indices.length < 2) {
+        let dataObj = `${data}`.replace("$AMT$", "");
+        console.log("In main js: ", dataObj);
+        child_obj = JSON.parse(dataObj);
+        let compressResult = compressAlgo(
+          child_obj,
+          PrevTimeStamp,
+          PrevWindowCode,
+          idleTime,
+          firstKeyCode,
+          PrevEvent,
+          rowString,
+          windowCodeObj,
+          windowCounter,
+          DB,
+          event_file,
+          window_file
         );
-      }
-    }
-
-    console.log(
-      "each event ",
-      PrevEvent,
-      PrevWindowCode,
-      "current status",
-      Object.keys(child_obj)[0],
-      wcode
-    );
-
-    // Updating the vars
-    if (PrevEvent != Object.keys(child_obj)[0] || wcode != PrevWindowCode) {
-      //write file
-      fs.appendFile(event_file, `${rowString}\n`, function (err) {
-        if (err) {
-          writeLogs(
-            logsPath,
-            `error during writing the start capture time to events.csv`
+        idleTime = compressResult.IdleTime;
+        windowCodeObj = compressResult.windowCodeObject;
+        windowCounter = compressResult.windowCounter;
+        rowString = compressResult.RowString;
+        PrevTimeStamp = compressResult.childObj.timeStamp;
+        PrevEvent = Object.keys(compressResult.childObj)[0];
+        PrevWindowCode = compressResult.windowCode;
+      } else {
+        console.log("Inside else case: ", indices);
+        let objectList = `${data}`.split("$AMT$");
+        console.log("The object list: ", objectList);
+        objectList.forEach((obj) => {
+          if (obj === "") return;
+          console.log("The obj in list: ", obj);
+          let dataObj = obj.replace("$AMT$", "");
+          child_obj = JSON.parse(dataObj);
+          let compressResult = compressAlgo(
+            child_obj,
+            PrevTimeStamp,
+            PrevWindowCode,
+            idleTime,
+            firstKeyCode,
+            PrevEvent,
+            rowString,
+            windowCodeObj,
+            windowCounter,
+            DB,
+            event_file,
+            window_file
           );
-        }
-      });
-
-      // Inserting into the event DB
-      let values;
-      let row_data = rowString.split(",");
-      let delay_string = "";
-      if (row_data.length > 3) {
-        delay_string = row_data.slice(2, row_data.length).toString();
+          idleTime = compressResult.IdleTime;
+          windowCodeObj = compressResult.windowCodeObject;
+          windowCounter = compressResult.windowCounter;
+          rowString = compressResult.RowString;
+          PrevTimeStamp = compressResult.childObj.timeStamp;
+          PrevEvent = Object.keys(compressResult.childObj)[0];
+          PrevWindowCode = compressResult.windowCode;
+        });
       }
-      if (PrevEvent === "startCapture") {
-        values = [parseInt(row_data[0]), 0, "start", 0, ""];
-      } else if (PrevEvent === "mouseData") {
-        let event_count = row_data.length - 2;
-        values = [
-          parseInt(row_data[0]),
-          parseInt(row_data[1]),
-          "mouse-click",
-          event_count,
-          delay_string,
-        ];
-      } else {
-        let event_count = row_data.length - 2;
-        values = [
-          parseInt(row_data[0]),
-          parseInt(row_data[1]),
-          "key-stroke",
-          event_count,
-          delay_string,
-        ];
-      }
-
-      try {
-        if (DB) insertEventData(DB, values);
-        else writeLogs(logsPath, "DB is null while inserting into events");
-      } catch (err) {
-        console.log("Error while inserting into event table ", err);
-        writeLogs(logsPath, `Error while inserting into event table ${err}`);
-      }
-
-      // currentTimeStamp = child_obj.timeStamp
-      rowString = `${child_obj.timeStamp},${wcode},`;
-    } else {
-      if (PrevEvent === "mouseData") {
-        let delay = child_obj.timeStamp - PrevTimeStamp;
-        rowString += `${delay},`;
-      } else {
-        let delay = child_obj.timeStamp - PrevTimeStamp;
-        rowString += `${child_obj.keystrokeData.rawcode}:${delay},`;
-      }
+    } catch (err) {
+      console.log("Error during parsing the data: ", err, `${data}`);
+      writeLogs(logsPath, `Error during parsing the data ${err}\n${data}`);
     }
-    PrevTimeStamp = child_obj.timeStamp;
-    PrevEvent = Object.keys(child_obj)[0];
-    PrevWindowCode = wcode;
 
     receivedData = `${data},\n`;
     // var dir = './kura.vamshikrishna@msitprogram.net';
@@ -480,6 +413,7 @@ ipcMain.on("startCapture", (event, arg) => {
 // The stop capture
 ipcMain.on("stopCapture", (event, arg) => {
   if (childProcess) childProcess.kill();
+  if (idleTimer) clearInterval(idleTimer);
   let objData = JSON.stringify({ stopCapture: new Date().toLocaleString() });
   let file = path.join(fileSyncFolder, "output.json");
   let event_file = path.join(fileSyncFolder, "events.csv");
@@ -501,7 +435,7 @@ ipcMain.on("stopCapture", (event, arg) => {
   });
 
   // Inserting the event into the DB
-  let values = [Date.now(), -2, "stop", 0, ""];
+  let values = [Date.now(), -2, "stop", 0, "", 0];
   try {
     if (DB) insertEventData(DB, values);
     else writeLogs(logsPath, "DB is null while inserting into events");
@@ -554,9 +488,68 @@ if (mainWindow) {
   mainWindow.on("closed", () => {
     console.log("In closed event");
     if (childProcess) childProcess.kill();
+    if (DB) DB.close();
     mainWindow = null;
   });
 }
+
+// Report Jobs
+let hourValue = 1;
+let minuteValue = 10;
+let jobsList = [];
+
+for (let i = 0; i < 5; i++) {
+  let jobRule = new schedule.RecurrenceRule();
+  jobRule.hour = hourValue;
+  jobRule.minute = minuteValue;
+  let scheduleInstance = schedule.scheduleJob(jobRule, () => {
+    console.log("Loop job called", jobRule.minute);
+  });
+  jobsList.push(scheduleInstance);
+  minuteValue += 1;
+}
+
+// Report for 9:30 - 11:00
+let jobOneRule = new schedule.RecurrenceRule();
+jobOneRule.hour = 23;
+jobOneRule.minute = 42;
+let jobOne = schedule.scheduleJob(jobOneRule, () => {
+  console.log("Job called");
+  let endTime = Date.parse(new Date());
+  let d = new Date().toDateString();
+  let t = `12:12:37 GMT+0530 (IST)`;
+  // let startTime = Date.parse(new Date(d + " " + t));
+  let startTime = 1600410001266;
+  if (DB) generateReport(DB, startTime, endTime);
+  else {
+    console.log("DB Instance or File not present");
+    writeLogs(logsPath, "DB Instance or File not present");
+  }
+});
+
+// Report for 11:00 - 13:00
+let jobTwoRule = new schedule.RecurrenceRule();
+jobTwoRule.hour = 13;
+jobTwoRule.minute = 00;
+let jobTwo = schedule.scheduleJob(jobTwoRule, () => {
+  // execute job function
+});
+
+// Report for 14:00 - 15:00
+let jobThreeRule = new schedule.RecurrenceRule();
+jobThreeRule.hour = 15;
+jobThreeRule.minute = 00;
+let jobThree = schedule.scheduleJob(jobThreeRule, () => {
+  // execute job function
+});
+
+// Report for 15:00 - 21:00
+let jobFourRule = new schedule.RecurrenceRule();
+jobFourRule.hour = 21;
+jobFourRule.minute = 00;
+let jobFour = schedule.scheduleJob(jobFourRule, () => {
+  // execute job function
+});
 
 // The auto updator events
 autoUpdater.on("checking-for-update", () => {

@@ -22,14 +22,15 @@ let timeLeft;
 
 // The cron job for the mark attendance button
 let enableRule = new schedule.RecurrenceRule();
-enableRule.hour = 17;
-enableRule.minute = 50;
+enableRule.hour = 12;
+enableRule.minute = 12;
 let enableRuleObj = schedule.scheduleJob(enableRule, function () {
   console.log("Enable rule called");
   axios
     .get("http://worldtimeapi.org/api/timezone/Asia/Kolkata")
     .then((response) => {
       let api_time = new Date(response.data.datetime);
+      login_date_time = api_time;
       let sys_time = new Date();
       let timeDiff =
         Math.abs(Date.parse(api_time) - Date.parse(sys_time)) / 1000;
@@ -40,6 +41,7 @@ let enableRuleObj = schedule.scheduleJob(enableRule, function () {
           sys_time.toLocaleString()
         );
         document.getElementById("attendance").disabled = false;
+        ipc.send("check-attendance");
       } else {
         console.log(
           "The time check did not pass",
@@ -50,13 +52,15 @@ let enableRuleObj = schedule.scheduleJob(enableRule, function () {
     })
     .catch((err) => {
       console.log("Error in fetch during enable rule ", err);
+      login_date_time = new Date();
+      ipc.send("check-attendance");
     });
 });
 
 // The disable button rule
 let disableRule = new schedule.RecurrenceRule();
-disableRule.hour = 17;
-disableRule.minute = 50;
+disableRule.hour = 12;
+disableRule.minute = 15;
 let disableRuleObj = schedule.scheduleJob(disableRule, function () {
   console.log("disable rule called");
   document.getElementById("attendance").disabled = true;
@@ -98,20 +102,21 @@ ipc.on("attendance-response", (event, arg) => {
       parseInt(login_date_time.getFullYear()),
       login_date_time.getMonth(),
       login_date_time.getDate(),
-      9,
-      0
+      12,
+      12
     );
     const end_att_time = new Date(
       parseInt(login_date_time.getFullYear()),
       login_date_time.getMonth(),
       login_date_time.getDate(),
-      9,
-      10
+      12,
+      15,
+      59
     );
-    if (login_date_time - start_att_time <= 0) {
+    if (login_date_time - start_att_time < 0) {
       document.getElementById("attendance").disabled = true;
     } else if (
-      login_date_time - end_att_time >= 0 &&
+      login_date_time - end_att_time > 0 &&
       document.getElementById("attendance").innerHTML != "Marked"
     ) {
       document.getElementById("attendance").disabled = true;

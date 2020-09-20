@@ -21,6 +21,7 @@
   "dependencies": {
     "active-win": "^6.1.0",
     "axios": "^0.20.0",
+    "bluebird": "^3.7.2",
     "bootstrap": "^4.5.2",
     "csv-parser": "^2.3.3",
     "electron-packager": "^15.1.0",

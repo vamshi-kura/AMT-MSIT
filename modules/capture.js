@@ -1,6 +1,7 @@
 // console.log("Child process created******")
 const ioHook = require("iohook");
 const activeWin = require("active-win");
+// const { writeLogs } = require("./logger");
 
 try {
   ioHook.on("keydown", async (event) => {
@@ -15,7 +16,8 @@ try {
           windowData: response,
           timeStamp: timeStampDetails,
         };
-        process.stdout.write(JSON.stringify(finalObject));
+        let finalString = JSON.stringify(finalObject) + "$AMT$";
+        process.stdout.write(finalString);
       })
       .catch((error) => {
         console.error("Error in keyborad active window event", error);
@@ -23,6 +25,7 @@ try {
   });
 } catch (err) {
   let logsPath = path.join(os.homedir(), "godseye");
+  // writeLogs(logsPath, `Error in child process: `, err);
 }
 
 try {
@@ -38,7 +41,8 @@ try {
           windowData: response,
           timeStamp: timeStampDetails,
         };
-        process.stdout.write(JSON.stringify(finalObject));
+        let finalString = JSON.stringify(finalObject) + "$AMT$";
+        process.stdout.write(finalString);
       })
       .catch((error) => {
         console.error("Error in mousedown active window event", error);
@@ -52,4 +56,5 @@ try {
   ioHook.start(true);
 } catch (err) {
   let logsPath = path.join(os.homedir(), "godseye");
+  // writeLogs(logsPath, `Error in child process: `, err);
 }
